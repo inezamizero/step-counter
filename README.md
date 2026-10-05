@@ -1,9 +1,10 @@
-# Clip-on step counter: LIS3DH + LilyGO T-QT (ESP32-S3)
+# Step counter prototype: LIS3DH + LilyGO T-QT (ESP32-S3)
 
 A step counter I built from a bare accelerometer and a tiny ESP32-S3 board. It reads the
 sensor over I2C, detects steps with an algorithm I tuned on my own recorded walking data,
 shows today's count on the board's 0.85" screen, keeps the count through power loss, and
-publishes it over Bluetooth Low Energy.
+publishes it over Bluetooth Low Energy. It runs on a breadboard for now; a wearable clip-on
+enclosure is one of the next steps.
 
 <p align="center">
   <img src="media/hardware.jpg" width="420" alt="T-QT showing 39 steps, wired to a SparkFun LIS3DH breakout on a breadboard">
@@ -20,7 +21,7 @@ in my pocket never counted. So I built my own counter that I can wear without th
 |---|---|
 | LIS3DH configured at register level over I2C (50 Hz, ±4 g, 12-bit) | ✅ |
 | Steady 50 Hz sampling using the sensor's data-ready flag | ✅ verified: every sample 20 ms apart, no gaps |
-| Step detection (filter, adaptive threshold, timing and rhythm rules) | ✅ 20/20 on my recorded walk |
+| Step detection (filter, adaptive threshold, timing and rhythm rules) | ✅ 20/20 on the recording I tuned it on; not yet validated on new walks ([details](#how-accurate-is-it)) |
 | Step count on the T-QT screen, flicker-free | ✅ |
 | Count saved in flash, survives unplugging | ✅ |
 | Bluetooth LE: total steps (read + notify), set clock (write) | ✅ reading verified with nRF Connect on iPhone |
@@ -45,7 +46,13 @@ in my pocket never counted. So I built my own counter that I can wear without th
 | SCL | IO17 | |
 | I1 | IO18 | Wired for later (interrupt-driven wake-up) |
 
-The address jumper on the LIS3DH is left open, which gives I2C address **0x19**.
+<p align="center">
+  <img src="media/wiring.svg" width="620" alt="Wiring diagram: T-QT 3V, GND, IO16, IO17, IO18 to LIS3DH VCC, GND, SDA, SCL, I1">
+</p>
+
+- The address jumper on the LIS3DH is left open, which gives I2C address **0x19**.
+- No external pull-up resistors are needed: the SparkFun breakout has I2C pull-ups on SDA and SCL, enabled by default through a solder jumper on the back.
+- The bus runs at 400 kHz (I2C fast mode, which the LIS3DH supports). The default 100 kHz also worked: a single register read took about 551 µs.
 
 <p align="center">
   <img src="media/soldering_timelapse.gif" width="240" alt="Timelapse of me soldering the headers">
@@ -95,8 +102,9 @@ Each rule comes from something visible in the data:
 4. **Maximum gap 2.0 s.** A longer pause ends the walk.
 5. **Regularity.** A walk only starts counting after 4 steps in a row with steady timing (each gap within 1.4× of the previous one). Then those 4 are credited at once.
 
-I measured what each rule contributes by replaying the recording
-([`analysis/replay.py`](analysis/replay.py)):
+I measured what each rule contributes by replaying the recording through
+[`analysis/replay.py`](analysis/replay.py), a Python port of the firmware logic that
+can switch individual rules on and off:
 
 | Rules applied | Count (true: 20) |
 |---|---|
@@ -126,6 +134,22 @@ Same recording, with the steps scaled down to simulate softer placements:
 | 60% | 9 | 20 |
 | 40% | 4 | 19 |
 
+### How accurate is it?
+Honest status: the rules and thresholds were chosen using this one 20-step recording, so
+20/20 is accuracy on the data it was tuned on, not proof that it generalizes. The 60% and
+40% rows are simulated by scaling the same recording, not separate real walks. v2 felt clearly
+better than v1 in live testing, but I haven't logged counted results yet.
+
+The next test is a held-out validation: 100 hand-counted steps each with the board held at
+the hip, in a pocket and in a bag, plus non-walking activity (sitting, typing, a car ride)
+that should count close to zero. Those numbers will go in a table here.
+
+To make sure the algorithm tested on my laptop is exactly what runs on the board, the
+latest firmware keeps the detector in its own Arduino-free file,
+[`step_detector.h`](firmware/09_step_counter_v5_bluetooth/step_detector.h).
+[`tests/test_step_detector.cpp`](tests/test_step_detector.cpp) compiles that same file on
+a computer, replays the recording and checks for 20 steps.
+
 ### 5. Screen, saving, Bluetooth
 - **Screen:** each frame is drawn into a 128×128 sprite in RAM (32 KB) and pushed to the panel in one go, so the number never flickers. It only redraws when something changes. A redraw takes a few ms, well inside the 20 ms between samples, so no sensor data is missed.
 - **Saving:** the count is stored in the ESP32's flash (NVS, via `Preferences`). Flash wears out with writes, so it saves at most every 30 s and only if the count changed. The trade-off is up to 30 s of steps lost if power is cut mid-walk.
@@ -154,8 +178,10 @@ firmware/                  Arduino sketches, in the order I built them
   07_step_counter_v3_display
   08_step_counter_v4_flash
   09_step_counter_v5_bluetooth      <- latest
+     step_detector.h       the step algorithm, no Arduino dependencies
+tests/test_step_detector.cpp   compiles step_detector.h on a computer and replays the recording
 data/walk_20_steps.csv     my recorded walk
-analysis/replay.py         replays the recording through the detection logic
+analysis/replay.py         Python port of the logic, used for the rule-by-rule comparison
 analysis/plot_walk.py      makes media/walk_plot.png
 media/                     photos, plot, soldering timelapse
 ```
@@ -167,14 +193,19 @@ media/                     photos, plot, soldering timelapse
 3. Tools menu (N8 board): ESP32S3 Dev Module, USB CDC On Boot: Enabled, Flash Size: 8MB, Partition Scheme: 8M with spiffs (3MB APP/1.5MB SPIFFS), PSRAM: Disabled, USB Mode: Hardware CDC and JTAG.
 4. Open `firmware/09_step_counter_v5_bluetooth` and upload. If upload fails, hold IO0 while plugging in USB.
 
-Hold the left button (IO0) for 2 s to reset the count. To replay the analysis:
-`python3 analysis/replay.py` (no dependencies).
+Hold the left button (IO0) for 2 s to reset the count.
+
+From the repository root:
+- `g++ -std=c++17 tests/test_step_detector.cpp -o test_step_detector && ./test_step_detector` runs the firmware's detector on the recording
+- `python3 analysis/replay.py` reproduces the tables above (no dependencies)
 
 ## Next steps
 
 - **Apple Health.** Planned path: a small iPhone app (CoreBluetooth + HealthKit) that reads the total, remembers the last value it synced, and saves only the difference as a step sample. My Mac's macOS is too old for the current Xcode, so my fallback design is Wi-Fi: the ESP32 serves `/pending` (unsynced steps) and `/ack` (confirm), and an iPhone Shortcut uses the built-in "Log Health Sample" action. Confirming only after Health accepts the data means steps are never lost or counted twice.
-- **Battery life.** The sensor draws almost nothing; the screen and CPU draw nearly everything. Plans: screen off after a few seconds, the LIS3DH's 32-sample FIFO so the CPU sleeps between batches, and a lower CPU clock. I want to measure current before and after each change instead of estimating.
-- **More test data:** pocket, bag, stairs, running, and a longer validation walk.
+- **Battery life.** The sensor draws almost nothing; the screen and CPU draw nearly everything. Plans: screen off after a few seconds, the LIS3DH's 32-sample FIFO so the CPU sleeps between batches, and a lower CPU clock, measuring current before and after each change.
+- **Held-out validation** (see [How accurate is it?](#how-accurate-is-it)), then stairs and running.
+- **Measure current** with a USB power meter, screen on vs. off, to get a real power budget.
+- **Firmware structure:** move the sensor driver, display and Bluetooth into their own files like the detector, with fewer global variables.
 - **Enclosure** with a clip and a LiPo battery (the T-QT Pro can charge one).
 
 ## References

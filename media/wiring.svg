@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="330" viewBox="0 0 720 330" font-family="Helvetica, Arial, sans-serif">
+  <rect width="720" height="330" fill="#ffffff"/>
+
+  <!-- T-QT -->
+  <rect x="30" y="40" width="220" height="250" rx="10" fill="#1f2a44" stroke="#0f172a" stroke-width="2"/>
+  <text x="140" y="70" fill="#ffffff" font-size="17" font-weight="bold" text-anchor="middle">LilyGO T-QT Pro</text>
+  <text x="140" y="90" fill="#cbd5e1" font-size="12" text-anchor="middle">ESP32-S3 (N8)</text>
+  <rect x="85" y="240" width="110" height="40" rx="4" fill="#0b1020" stroke="#475569"/>
+  <text x="140" y="264" fill="#7dd3fc" font-size="12" text-anchor="middle">128×128 screen</text>
+
+  <!-- LIS3DH -->
+  <rect x="470" y="40" width="220" height="250" rx="10" fill="#c8102e" stroke="#7f0a1d" stroke-width="2"/>
+  <text x="580" y="70" fill="#ffffff" font-size="17" font-weight="bold" text-anchor="middle">SparkFun LIS3DH</text>
+  <text x="580" y="90" fill="#fde2e6" font-size="12" text-anchor="middle">I2C address 0x19 (jumper open)</text>
+  <text x="580" y="262" fill="#ffffff" font-size="11" text-anchor="middle">On-board pull-ups on SDA/SCL</text>
+  <text x="580" y="277" fill="#ffffff" font-size="11" text-anchor="middle">(enabled by default)</text>
+
+  <!-- pin labels left -->
+  <g font-size="13" fill="#ffffff">
+    <text x="236" y="124" text-anchor="end">3V</text>
+    <text x="236" y="149" text-anchor="end">GND</text>
+    <text x="236" y="174" text-anchor="end">IO16</text>
+    <text x="236" y="199" text-anchor="end">IO17</text>
+    <text x="236" y="224" text-anchor="end" fill="#94a3b8">IO18</text>
+  </g>
+  <!-- pin labels right -->
+  <g font-size="13" fill="#ffffff">
+    <text x="484" y="124">VCC</text>
+    <text x="484" y="149">GND</text>
+    <text x="484" y="174">SDA</text>
+    <text x="484" y="199">SCL</text>
+    <text x="484" y="224" fill="#fecdd3">I1</text>
+  </g>
+
+  <!-- wires -->
+  <g stroke-width="4" stroke-linecap="round">
+    <line x1="250" y1="120" x2="470" y2="120" stroke="#dc2626"/>
+    <line x1="250" y1="145" x2="470" y2="145" stroke="#111827"/>
+    <line x1="250" y1="170" x2="470" y2="170" stroke="#16a34a"/>
+    <line x1="250" y1="195" x2="470" y2="195" stroke="#ea580c"/>
+    <line x1="250" y1="220" x2="470" y2="220" stroke="#94a3b8" stroke-dasharray="8 6"/>
+  </g>
+  <g font-size="11" fill="#334155" text-anchor="middle">
+    <text x="360" y="113">3.3 V</text>
+    <text x="360" y="163">I2C data (400 kHz)</text>
+    <text x="360" y="188">I2C clock</text>
+    <text x="360" y="238">interrupt (wired, not used yet)</text>
+  </g>
+
+  <text x="360" y="315" fill="#64748b" font-size="11" text-anchor="middle">Powered from USB-C. LIS3DH max supply 3.6 V, so it must go on 3V, never 5V.</text>
+</svg>
